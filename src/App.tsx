@@ -1,35 +1,75 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState, useEffect } from "react";
+import TaskForm from "./components/TaskForm";
+import TaskList from "./components/TaskList";
+import { loadTasks, saveTasks } from "./utils/storage";
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const loaded = loadTasks();
+    setTasks(loaded);
+  }, []);
+
+  useEffect(() => {
+    saveTasks(tasks);
+  }, [tasks]);
+
+  const addTask = (title, parentId = null) => {
+    const newTask = {
+      id: Date.now(),
+      title,
+      subTasks: [],
+    };
+
+    if (parentId === null) {
+      setTasks([...tasks, newTask]);
+    } else {
+      const updated = tasks.map(task =>
+        task.id === parentId
+          ? { ...task, subTasks: [...task.subTasks, newTask] }
+          : task
+      );
+      setTasks(updated);
+    }
+  };
+
+  const updateTask = (id, newTitle, parentId = null) => {
+    const updateList = (taskList) =>
+      taskList.map(task => {
+        if (task.id === id) return { ...task, title: newTitle };
+        if (task.subTasks.length > 0)
+          return { ...task, subTasks: updateList(task.subTasks) };
+        return task;
+      });
+
+    setTasks(updateList(tasks));
+  };
+
+  const deleteTask = (id) => {
+    const deleteRecursive = (list) =>
+      list.filter(task => {
+        if (task.subTasks.length > 0) {
+          task.subTasks = deleteRecursive(task.subTasks);
+        }
+        return task.id !== id;
+      });
+
+    setTasks(deleteRecursive(tasks));
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="App">
+      <h1>📝 Task App with Sub-Tasks</h1>
+      <TaskForm onSubmit={addTask} />
+      <TaskList
+        tasks={tasks}
+        onAddSubTask={addTask}
+        onUpdate={updateTask}
+        onDelete={deleteTask}
+      />
+    </div>
+  );
 }
 
-export default App
+export default App;
